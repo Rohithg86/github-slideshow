@@ -1,0 +1,122 @@
+// Prisma schema for WealthPilot
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model BrokerAccount {
+  id            String       @id @default(cuid())
+  name          String
+  broker        String
+  accountNumber String       @unique
+  createdAt     DateTime     @default(now())
+  holdings      Holding[]
+  transactions  Transaction[]
+}
+
+model Holding {
+  id               String        @id @default(cuid())
+  symbol           String
+  isin             String?
+  quantity         Float
+  averagePrice     Float
+  type             HoldingType   @default(EQUITY)
+  targetAllocation Float?        // Optional target weight 0..1
+  lastUpdated      DateTime      @default(now())
+
+  accountId String
+  account   BrokerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([symbol])
+}
+
+model Transaction {
+  id         String          @id @default(cuid())
+  type       TransactionType
+  symbol     String?
+  quantity   Float?
+  price      Float?
+  fees       Float?          @default(0)
+  date       DateTime
+  note       String?
+
+  accountId String
+  account   BrokerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([date])
+}
+
+model BankAccount {
+  id            String            @id @default(cuid())
+  name          String
+  institution   String
+  accountNumber String            @unique
+  balance       Float             @default(0)
+  createdAt     DateTime          @default(now())
+  transactions  BankTransaction[]
+}
+
+model BankTransaction {
+  id            String         @id @default(cuid())
+  bankAccountId String
+  bankAccount   BankAccount    @relation(fields: [bankAccountId], references: [id])
+  date          DateTime
+  amount        Float
+  type          BankTxnType
+  description   String?
+  category      String?
+
+  @@index([date])
+}
+
+model PriceCache {
+  id       String   @id @default(cuid())
+  symbol   String   @unique
+  price    Float
+  currency String   @default("INR")
+  asOf     DateTime @default(now())
+}
+
+model Recommendation {
+  id           String          @id @default(cuid())
+  createdAt    DateTime        @default(now())
+  symbol       String?
+  action       RecommendationAction
+  score        Float
+  rationale    String
+  targetWeight Float?
+}
+
+enum HoldingType {
+  EQUITY
+  MF
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DIVIDEND
+  SPLIT
+  BONUS
+  INTEREST
+  MF_BUY
+  MF_SELL
+}
+
+enum BankTxnType {
+  DEBIT
+  CREDIT
+}
+
+enum RecommendationAction {
+  BUY
+  SELL
+  HOLD
+  REBALANCE
+  MOVE_TO_MF
+}
